@@ -1,0 +1,81 @@
+create table Produse
+(  
+ produs        varchar(80)  PRIMARY KEY ,
+    garantie      int check(garantie<=5),
+    stoc          int check(stoc<=200),
+    val_unit      numeric(7,2)
+ );
+create table vanzare
+( nume          varchar(30),
+   prenume       varchar(30),
+   numar_cont    char(8),
+   data_nasterii date,
+   produs  varchar(80)   REFERENCES Produse(produs) ,
+   data_vanzarii date,
+cantitate_vanduta int
+);
+
+insert into produse values('Fujitsu Siemens Amilo Pro',1,10,2000);
+insert into produse values('Indesit WLI1000',3,5,900);
+insert into produse values('Gorenje RC400',3,4,1500);
+     select * from produse;
+
+insert into vanzare values('Popescu','Ion','11111111','01-jan-1985','Fujitsu Siemens Amilo Pro','01-jan-2007',1);
+insert into vanzare values('Georgescu','Andreea','22222222','23-aug-1983','Indesit WLI1000','01-jan-2007',1);
+insert into vanzare values('Ionescu','Robert','33333333','08-mar-1982', 'Gorenje RC400','01-jan-2007',1);
+
+create or replace trigger tr 
+after insert on vanzare
+for each row
+declare
+num varchar(80);
+cant int;
+begin
+num:=:new.produs;
+cant:=:new.cantitate_vanduta;
+update produse set produse.stoc=produse.stoc-cant where produse.produs=num;	
+end;
+/
+
+create or replace procedure vanz(p1 char,p2 varchar,c int) as
+num varchar(30);
+pren varchar(30);
+dn date;
+begin
+select nume into num from vanzare where vanzare.numar_cont=p1;
+select prenume into pren from vanzare where vanzare.numar_cont=p1;
+select data_nasterii into dn from vanzare where vanzare.numar_cont=p1;
+if ((num is not null) and (pren is not null)) then
+  insert into vanzare values (num,pren,p1,dn,p2,sysdate,c);
+end if;
+       exception
+when others then
+  raise_application_error(-20000,'Clientul nu exista!');
+end;
+/
+
+select v.nume,v.prenume,v.produs,sum(v.cantitate_vanduta)as cantitate, sum(p.val_unit)* 
+sum(v.cantitate_vanduta) as valoare from vanzare v, produse p where v.produs=p.produs group by v.nume, v.prenume, v.produs;
+
+select p.produs,p.garantie*365.25+v.data_vanzarii as DataExpirarii from vanzare v, produse p where
+p.produs=v.produs and p.garantie*365.25+v.data_vanzarii<sysdate;
+
+
+select produs, sum(cantitate_vanduta) as nr from vanzare group by produs having count(produs) in 
+(select max(count(produs)) from vanzare group by produs);
+
+select data_vanzarii, count(*) as NR_VANZ from vanzare group by data_vanzarii 
+having count(produs) in (select max(count(produs)) from vanzare group by data_vanzarii);
+
+
+select v.nume, v.prenume,sum(v.cantitate_vanduta) as NR_PROD,sum(p.val_unit)* sum(v.cantitate_vanduta)  
+as VAL_CUMP from vanzare v,produse p where v.produs=p.produs group by v.nume, v.prenume order by count(v.produs) desc;
+
+
+
+
+
+
+
+
+
